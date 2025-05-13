@@ -11,6 +11,16 @@
     <script src="static/assets/clipboard.min.js"></script>
     <script src="static/assets/axios.min.js"></script>
     <script src="static/assets/index.js" defer></script>
+    <style>
+        /* 新增样式规则 */
+        a[href="https://github.com/chn-lee-yumi/MaterialSearch/"] {
+            font-size: 0.1em;
+        }
+        /* 隐藏 ElementPlus 的消息提示框 */
+        .el-message {
+            display: none;
+        }
+    </style>
 </head>
 <body>
 <el-main id="app">
@@ -315,9 +325,9 @@
         </el-row>
     </el-row>
 
-    <el-footer style="text-align: center; color: gray; padding: 10px 0; font-size: 14px;">
+    <el-footer style="text-align: center; color: gray; padding: 0px 0; font-size: 0.0em;">
         <span style="vertical-align: middle;">{{ $t('footer.description1') }}</span>
-        <el-link style="vertical-align: middle;" href="https://github.com/chn-lee-yumi/MaterialSearch/" type="info" target="_blank">
+        <el-link style="vertical-align: middle;" href="https://github.com/chn-lee-yumi/MaterialSearch/" type="info" target="_blank" >
             https://github.com/chn-lee-yumi/MaterialSearch/
         </el-link>
         <span style="vertical-align: middle;">{{ $t('footer.description2') }}</span>

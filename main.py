@@ -8,7 +8,7 @@ from flask import Flask, abort, jsonify, redirect, request, send_file, session, 
 
 from config import *
 from database import get_image_path_by_id, is_video_exist, get_pexels_video_count
-from init import *
+# from init import *
 from models import DatabaseSession, DatabaseSessionPexelsVideo
 from process_assets import match_text_and_image, process_image, process_text
 from scan import Scanner
@@ -278,9 +278,9 @@ def api_upload():
 
 
 if __name__ == "__main__":
-    pre_init()
+    # pre_init()
     init()
     logging.getLogger('werkzeug').setLevel(LOG_LEVEL)
-    init2()  # 函数定义在加密代码中，请忽略 Unresolved reference 'init2'
-    post_init()
+    # init2()  # 函数定义在加密代码中，请忽略 Unresolved reference 'init2'
+    # post_init()
     app.run(port=PORT, host=HOST, debug=FLASK_DEBUG)

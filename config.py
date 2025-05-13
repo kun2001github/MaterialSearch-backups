@@ -3,11 +3,11 @@ import os
 
 import torch
 
-from env import *
-
-pre_env()
-env()  # 函数定义在加密代码中，请忽略 Unresolved reference 'env'
-post_env()
+# 输出代码执行的设备信息，用于调试
+# from env import *
+# pre_env()
+# env()  # 函数定义在加密代码中，请忽略 Unresolved reference 'env'
+# post_env()
 
 # *****服务器配置*****
 HOST = os.getenv('HOST', '127.0.0.1')  # 监听IP，如果想允许远程访问，把这个改成0.0.0.0

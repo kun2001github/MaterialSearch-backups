@@ -11,11 +11,18 @@ from transformers import AutoModelForZeroShotImageClassification, AutoProcessor
 
 from config import *
 
+from tqdm import tqdm
+
 logger = logging.getLogger(__name__)
 
 logger.info("Loading model...")
-model = AutoModelForZeroShotImageClassification.from_pretrained(MODEL_NAME).to(DEVICE)
-processor = AutoProcessor.from_pretrained(MODEL_NAME)
+print("Loading models...")
+with tqdm(total=2, desc='Model Loading', unit='step') as pbar:
+    clip_model = AutoModelForZeroShotImageClassification.from_pretrained(MODEL_NAME)
+    pbar.update(1)
+    clip_processor = AutoProcessor.from_pretrained(MODEL_NAME)
+    pbar.update(1)
+print("Models loaded.")
 logger.info("Model loaded.")
 
 

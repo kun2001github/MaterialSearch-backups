@@ -7,6 +7,7 @@ from transformers import AutoModelForZeroShotImageClassification, AutoProcessor
 
 from config import *
 import importlib.util
+from tqdm import tqdm
 
 device_list = ["cpu", "cuda", "mps"]  # 推理设备，可选cpu、cuda、mps
 if importlib.util.find_spec("torch_directml") is not None: # 如果支持DirectML，则加入DirectML设备
@@ -18,8 +19,11 @@ image = Image.open("test.png")  # 测试图片。图片大小影响速度，一�
 test_times = 100  # 测试次数
 
 print("Loading models...")
-clip_model = AutoModelForZeroShotImageClassification.from_pretrained(MODEL_NAME)
-clip_processor = AutoProcessor.from_pretrained(MODEL_NAME)
+with tqdm(total=2, desc='Model Loading', unit='step') as pbar:
+    clip_model = AutoModelForZeroShotImageClassification.from_pretrained(MODEL_NAME)
+    pbar.update(1)
+    clip_processor = AutoProcessor.from_pretrained(MODEL_NAME)
+    pbar.update(1)
 print("Models loaded.")
 
 # 图像处理性能基准测试
