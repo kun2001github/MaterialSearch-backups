@@ -5,7 +5,7 @@ import torch
 from PIL import Image
 from transformers import AutoModelForZeroShotImageClassification, AutoProcessor
 
-from config import *
+from app.config import *
 import importlib.util
 from tqdm import tqdm
 

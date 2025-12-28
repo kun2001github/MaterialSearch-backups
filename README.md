@@ -82,7 +82,24 @@ B站视频教程：[点击这里，求三连支持](https://www.bilibili.com/vid
 ```conf
 ASSETS_PATH=C:/Users/Administrator/Pictures,C:/Users/Administrator/Videos
 SKIP_PATH=C:/Users/Administrator/AppData
+ENABLE_FILE_WATCH=True
 ```
+
+### 文件监控功能
+
+`ENABLE_FILE_WATCH`配置项可以启用实时文件监控功能。启用后，系统会自动监控指定目录下的文件变化：
+
+- **新增文件**：自动扫描并添加到数据库
+- **修改文件**：自动更新数据库中的记录
+- **删除文件**：自动从数据库中删除记录
+- **移动文件**：自动删除旧记录并添加新记录
+
+这样可以避免每次文件变化后都需要手动重新扫描，保持数据库与实际文件同步。
+
+注意事项：
+- 文件监控会实时处理文件变化，可能会增加系统负载
+- 如果文件变化频繁，建议适当增加批量处理延迟（默认2秒）
+- 启用文件监控后，手动扫描仍然可用
 
 如果你发现某些格式的图片或视频没有被扫描到，可以尝试在`IMAGE_EXTENSIONS`和`VIDEO_EXTENSIONS`增加对应的后缀。如果你发现一些支持的后缀没有被添加到代码中，欢迎提issue或pr增加。
 

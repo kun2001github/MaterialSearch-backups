@@ -4,16 +4,16 @@ from functools import lru_cache
 
 import numpy as np
 
-from config import *
-from database import (
+from app.config import *
+from app.models.database import (
     get_image_id_path_features_filter_by_path_time,
     get_image_features_by_id,
     get_video_paths,
     get_frame_times_features_by_path,
     get_pexels_video_features,
 )
-from models import DatabaseSession, DatabaseSessionPexelsVideo
-from process_assets import match_batch, process_image, process_text
+from app.models.models import DatabaseSession, DatabaseSessionPexelsVideo
+from app.services.process_assets import match_batch, process_image, process_text
 
 logger = logging.getLogger(__name__)
 

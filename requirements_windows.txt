@@ -12,3 +12,5 @@ tqdm>=4.66.1
 requests>=2.31.0
 torch-directml
 tqdm
+hf_xet
+watchdog>=3.0.0

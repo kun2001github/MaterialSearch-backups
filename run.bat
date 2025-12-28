@@ -1,2 +1,2 @@
-conda activate Search_py312 && python main.py >nul 2>&1 &
+conda activate Search_py312 && python run.py 
 pause

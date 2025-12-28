@@ -4,7 +4,7 @@ import logging
 from sqlalchemy import asc
 from sqlalchemy.orm import Session
 
-from models import Image, Video, PexelsVideo
+from app.models.models import Image, Video, PexelsVideo
 
 logger = logging.getLogger(__name__)
 
@@ -129,10 +129,20 @@ def get_video_frame_count(session: Session):
     return session.query(Video).count()
 
 
+
+
+def delete_image_by_path(session: Session, path: str):
+    """删除路径对应的图片数据"""
+    session.query(Image).filter_by(path=path).delete()
+    session.commit()
+
+
 def delete_video_by_path(session: Session, path: str):
     """删除路径对应的视频数据"""
     session.query(Video).filter_by(path=path).delete()
     session.commit()
+
+
 
 
 def add_image(session: Session, path: str, modify_time: datetime.datetime, checksum: str, features: bytes):

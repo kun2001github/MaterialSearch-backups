@@ -10,3 +10,5 @@ opencv-python-headless>=4.7.0.68
 python-dotenv>=0.19.2
 tqdm>=4.66.1
 requests>=2.31.0
+hf_xet
+watchdog>=3.0.0

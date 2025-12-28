@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from config import SQLALCHEMY_DATABASE_URL
+from app.config import SQLALCHEMY_DATABASE_URL
 
 # 数据库目录不存在的时候自动创建目录。TODO：如果是mysql之类的数据库，这里的代码估计是不兼容的
 folder_path = os.path.dirname(SQLALCHEMY_DATABASE_URL.replace("sqlite:///", ""))
@@ -23,7 +23,7 @@ DatabaseSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # PexelsVideo数据库
 BaseModelPexelsVideo = declarative_base()
 engine_pexels_video = create_engine(
-    'sqlite:///./PexelsVideo.db',
+    'sqlite:///./data/PexelsVideo.db',
     connect_args={"check_same_thread": False}
 )
 DatabaseSessionPexelsVideo = sessionmaker(autocommit=False, autoflush=False, bind=engine_pexels_video)

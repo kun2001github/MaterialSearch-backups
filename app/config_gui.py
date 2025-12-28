@@ -11,8 +11,13 @@ def load_file_content(filepath):
     """Reads file content; returns an empty string if the file doesn't exist."""
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
+            print (f"读取路径: {filepath} 成功")
             return f.read()
     except FileNotFoundError:
+        print(f"文件 {filepath} 未找到。")
+        return ""
+    except Exception as e:
+        print(f"读取文件 {filepath} 时发生错误: {e}")
         return ""
 
 def save_file_content(filepath, content):

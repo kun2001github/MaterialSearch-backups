@@ -4,8 +4,8 @@ import pickle
 import time
 from pathlib import Path
 
-from config import *
-from database import (
+from app.config import *
+from app.models.database import (
     get_image_count,
     get_video_count,
     get_video_frame_count,
@@ -15,10 +15,10 @@ from database import (
     add_video,
     add_image,
 )
-from models import create_tables, DatabaseSession
-from process_assets import process_images, process_video
-from search import clean_cache
-from utils import get_file_hash
+from app.models.models import create_tables, DatabaseSession
+from app.services.process_assets import process_images, process_video
+from app.routes.search import clean_cache
+from app.services.utils import get_file_hash
 
 
 class Scanner:

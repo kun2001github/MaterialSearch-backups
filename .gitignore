@@ -135,11 +135,10 @@ dmypy.json
 .pyre/
 
 # ignore local config
-config.py
 config.local.py
 
 # Python venv
-[Ss]hare 
+[Ss]hare
 # https://github.com/github/gitignore/blob/main/Global/VirtualEnv.gitignore
 .Python
 [Bb]in
@@ -147,7 +146,7 @@ config.local.py
 [Ll]ib
 [Ll]ib64
 [Ll]ocal
-[Ss]cripts
+venv/[Ss]cripts
 pyvenv.cfg
 .venv
 pip-selfcheck.json
@@ -157,3 +156,6 @@ enc_*.py
 index_*.js
 *.bk
 recover.sh
+
+.vscode
+data/cache

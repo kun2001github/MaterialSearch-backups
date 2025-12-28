@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <title>Material Search Engine</title>
-    <link rel="stylesheet" href="static/assets/index.css"/>
-    <script src="static/assets/vue.global.prod.js"></script>
-    <script src="static/assets/vue-i18n.global.prod.js"></script>
-    <script src="static/assets/index.full.min.js"></script>
-    <script src="static/assets/index.iife.min.js"></script>
-    <script src="static/assets/clipboard.min.js"></script>
-    <script src="static/assets/axios.min.js"></script>
-    <script src="static/assets/index.js" defer></script>
+    <link rel="stylesheet" href="static/css/index.css"/>
+    <script src="static/libs/vue.global.prod.js"></script>
+    <script src="static/libs/vue-i18n.global.prod.js"></script>
+    <script src="static/libs/index.full.min.js"></script>
+    <script src="static/libs/index.iife.min.js"></script>
+    <script src="static/libs/clipboard.min.js"></script>
+    <script src="static/libs/axios.min.js"></script>
+    <script src="static/js/index.js" defer></script>
     <style>
         /* 新增样式规则 */
         a[href="https://github.com/chn-lee-yumi/MaterialSearch/"] {
@@ -20,10 +20,14 @@
         .el-message {
             display: none;
         }
+        /* 隐藏未编译的 Vue 模板，避免刷新时出现乱码 */
+        [v-cloak] {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
-<el-main id="app">
+<el-main id="app" v-cloak>
     <el-row justify="center">
         <h1 style="margin:0;">{{ $t("title") }}</h1>
         <!-- TODO: 可以手动切换语言
@@ -41,6 +45,9 @@
         <el-tag size="large" type="success" effect="dark">{{ $t("statusLabels.totalVideoFrames") }}: {{ status.total_video_frames }}</el-tag>
         <el-tag size="large" v-if="status.total_pexels_videos != 0" type="success" effect="dark">
             {{ $t("statusLabels.totalPexelsVideos") }}: {{status.total_pexels_videos }}
+        </el-tag>
+        <el-tag size="large" v-if="status.file_watch_enabled" :type="status.file_watch_running ? 'success' : 'warning'" effect="dark">
+            {{ $t("statusLabels.fileWatchStatus") }}: {{ status.file_watch_running ? '运行中' : '已停止' }}
         </el-tag>
         <el-tag size="large" v-if="isScanning" type="info" effect="dark">{{ $t("statusLabels.scanningFiles") }}: {{ status.scanning_files }}</el-tag>
         <el-tag size="large" v-if="isScanning" type="info" effect="dark">{{ $t("statusLabels.remainFiles") }}: {{ status.remain_files }}</el-tag>
@@ -73,12 +80,12 @@
                                   @keyup.enter.native="search(0)"></el-input>
                         </el-col>
                         <el-col :span="6">
-                            <el-select v-model="form.top_n" :placeholder="$t('formPlaceholders.topNResults')" style="width:100px">
-                                <el-option label="Top 6" value="6"></el-option>
-                                <el-option label="Top 12" value="12"></el-option>
-                                <el-option label="Top 30" value="30"></el-option>
-                                <el-option label="Top 150" value="150"></el-option>
-                                <el-option :label="$t('formPlaceholders.topnAll')" value="1000000"></el-option>
+                            <el-select v-model.number="form.top_n" :placeholder="$t('formPlaceholders.topNResults')" style="width:100px">
+                                <el-option label="Top 6" :value="6"></el-option>
+                                <el-option label="Top 12" :value="12"></el-option>
+                                <el-option label="Top 30" :value="30"></el-option>
+                                <el-option label="Top 150" :value="150"></el-option>
+                                <el-option :label="$t('formPlaceholders.topnAll')" :value="1000000"></el-option>
                             </el-select>
                             <el-button type="success" icon="Search" @click="search(0)">{{ $t('searchButtons.search') }}</el-button>
                         </el-col>
@@ -115,13 +122,13 @@
                             <div class="el-upload__text">{{ $t('uploader.drag') }}<em>{{ $t('uploader.click') }}</em></div>
                         </el-upload>
                         <el-form ref="form" :model="form" :inline="true" style="margin-top:5px;">
-                            <el-select v-model="form.top_n" :placeholder="$t('formPlaceholders.topNResults')" style="width:100px"
+                            <el-select v-model.number="form.top_n" :placeholder="$t('formPlaceholders.topNResults')" style="width:100px"
                                        @keyup.enter.native="search(1)">
-                                <el-option label="Top 6" value="6"></el-option>
-                                <el-option label="Top 12" value="12"></el-option>
-                                <el-option label="Top 30" value="30"></el-option>
-                                <el-option label="Top 150" value="150"></el-option>
-                                <el-option :label="$t('formPlaceholders.topnAll')" value="1000000"></el-option>
+                                <el-option label="Top 6" :value="6"></el-option>
+                                <el-option label="Top 12" :value="12"></el-option>
+                                <el-option label="Top 30" :value="30"></el-option>
+                                <el-option label="Top 150" :value="150"></el-option>
+                                <el-option :label="$t('formPlaceholders.topnAll')" :value="1000000"></el-option>
                             </el-select>
                             <el-button type="success" icon="Search" @click="search(1)">{{ $t('searchButtons.search') }}</el-button>
                             <el-button type="success" icon="Pointer" @click="pasteImg">{{ $t('searchButtons.paste') }}</el-button>
@@ -151,12 +158,12 @@
                               @keyup.enter.native="search(2)"></el-input>
                         </el-col>
                         <el-col :span="6">
-                            <el-select v-model="form.top_n" :placeholder="$t('formPlaceholders.topNResults')" style="width:100px">
-                                <el-option label="Top 6" value="6"></el-option>
-                                <el-option label="Top 12" value="12"></el-option>
-                                <el-option label="Top 30" value="30"></el-option>
-                                <el-option label="Top 150" value="150"></el-option>
-                                <el-option :label="$t('formPlaceholders.topnAll')" value="1000000"></el-option>
+                            <el-select v-model.number="form.top_n" :placeholder="$t('formPlaceholders.topNResults')" style="width:100px">
+                                <el-option label="Top 6" :value="6"></el-option>
+                                <el-option label="Top 12" :value="12"></el-option>
+                                <el-option label="Top 30" :value="30"></el-option>
+                                <el-option label="Top 150" :value="150"></el-option>
+                                <el-option :label="$t('formPlaceholders.topnAll')" :value="1000000"></el-option>
                             </el-select>
                             <el-button type="success" icon="Search" @click="search(2)">{{ $t('searchButtons.search') }}</el-button>
                         </el-col>
@@ -193,13 +200,13 @@
                             <div class="el-upload__text">{{ $t('uploader.drag') }}<em>{{ $t('uploader.click') }}</em></div>
                         </el-upload>
                         <el-form ref="form" :model="form" :inline="true" style="margin-top:5px;">
-                            <el-select v-model="form.top_n" :placeholder="$t('formPlaceholders.topNResults')" style="width:100px"
-                                       @keyup.enter.native="search(1)">
-                                <el-option label="Top 6" value="6"></el-option>
-                                <el-option label="Top 12" value="12"></el-option>
-                                <el-option label="Top 30" value="30"></el-option>
-                                <el-option label="Top 150" value="150"></el-option>
-                                <el-option :label="$t('formPlaceholders.topnAll')" value="1000000"></el-option>
+                            <el-select v-model.number="form.top_n" :placeholder="$t('formPlaceholders.topNResults')" style="width:100px"
+                                       @keyup.enter.native="search(3)">
+                                <el-option label="Top 6" :value="6"></el-option>
+                                <el-option label="Top 12" :value="12"></el-option>
+                                <el-option label="Top 30" :value="30"></el-option>
+                                <el-option label="Top 150" :value="150"></el-option>
+                                <el-option :label="$t('formPlaceholders.topnAll')" :value="1000000"></el-option>
                             </el-select>
                             <el-button type="success" icon="Search" @click="search(3)">{{ $t('searchButtons.search') }}</el-button>
                             <el-button type="success" icon="Pointer" @click="pasteImg">{{ $t('searchButtons.paste') }}</el-button>
@@ -247,12 +254,12 @@
                     <el-form-item :label="$t('formPlaceholders.positiveThreshold')" style="margin-bottom: 0px;" @keyup.enter.native="search(9)">
                         <el-slider style="width:200px" v-model="form.positive_threshold"></el-slider>
                     </el-form-item>
-                    <el-select v-model="form.top_n" :placeholder="$t('formPlaceholders.topNResults')" style="width:100px">
-                        <el-option label="Top 6" value="6"></el-option>
-                        <el-option label="Top 12" value="12"></el-option>
-                        <el-option label="Top 30" value="30"></el-option>
-                        <el-option label="Top 150" value="150"></el-option>
-                        <el-option :label="$t('formPlaceholders.topnAll')" value="1000000"></el-option>
+                    <el-select v-model.number="form.top_n" :placeholder="$t('formPlaceholders.topNResults')" style="width:100px">
+                        <el-option label="Top 6" :value="6"></el-option>
+                        <el-option label="Top 12" :value="12"></el-option>
+                        <el-option label="Top 30" :value="30"></el-option>
+                        <el-option label="Top 150" :value="150"></el-option>
+                        <el-option :label="$t('formPlaceholders.topnAll')" :value="1000000"></el-option>
                     </el-select>
                     <el-button type="success" icon="Search" @click="search(9)">{{ $t('searchButtons.search') }}</el-button>
                 </el-form>
@@ -283,6 +290,9 @@
                         <el-tag size="default" type="info" effect="dark" class="copy" :data-clipboard-text="file.path">{{file.path.replace(/\\/g, '/').split('/').pop()}}
                         </el-tag>
                     </el-tooltip>
+                    <el-button size="small" round type="primary" @click="copyPath(file.path)">
+                        {{ $t('fileResults.copyPath') }}
+                    </el-button>
                     <el-tooltip v-if="file.end_time" :content="$t('fileResults.matchingTimeRange')" placement="bottom">
                         <el-tag size="default" type="warning" effect="dark">{{file.start_time}} ~ {{file.end_time}}</el-tag>
                     </el-tooltip>
@@ -300,6 +310,17 @@
                 </el-row>
             </el-card>
         </el-col>
+    </el-row>
+    <el-row justify="center" v-if="totalFiles > pageSize">
+        <el-pagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :page-sizes="[30, 60, 90, 120]"
+            :total="totalFiles"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="handleSizeChange"
+            @current-change="handlePageChange"
+        ></el-pagination>
     </el-row>
 
     <el-row :gutter="5" v-if="form.search_type === 9">
@@ -345,12 +366,14 @@ const app = Vue.createApp({
                 total_pexels_videos: 0,
                 total_video_frames: 0,
                 total_videos: 0,
+                file_watch_enabled: false,
+                file_watch_running: false,
             },
             enableLogin: null,
             form: {
                 positive: '',
                 negative: '',
-                top_n: '6',
+                top_n: 6,
                 search_type: 0,
                 positive_threshold: 30,
                 negative_threshold: 30,
@@ -362,6 +385,10 @@ const app = Vue.createApp({
             },
             time_filter: null,
             files: [],
+            allFiles: [],
+            totalFiles: 0,
+            currentPage: 1,
+            pageSize: 30,
             image_url_list: [],
             pexels_videos: [],
             timer: null,
@@ -371,7 +398,8 @@ const app = Vue.createApp({
     },
     mounted: function() {
         this.loadData();
-        this.timer = setInterval(this.loadData, 5000);
+        // 缩短轮询间隔到2秒，以便更快显示文件删除后的总数变化
+        this.timer = setInterval(this.loadData, 2000);
     },
     created() {
         var that = this
@@ -411,6 +439,8 @@ const app = Vue.createApp({
                     that.status.remain_time = formatTime(that.status.remain_time);
                     that.isScanning = response["data"]["status"];
                     that.enableLogin = response["data"]["enable_login"];
+                    that.status.file_watch_enabled = response["data"]["file_watch_enabled"];
+                    that.status.file_watch_running = response["data"]["file_watch_running"];
                 })
                 .catch(function(error) {
                     console.log(error);
@@ -439,6 +469,10 @@ const app = Vue.createApp({
             }
             this.upload.clearFiles();
             that.form.search_type = search_type;
+            // 确保top_n有值并且是数字
+            if (!that.form.top_n) {
+                that.form.top_n = 6;
+            }
             if ((search_type === 0 || search_type === 2) && that.form.positive == "" && that.form.path == "") {
                 ElementPlus.ElMessage.error(that.$t('messages.searchContentEmpty'));
                 loadingInstance.close();
@@ -461,17 +495,23 @@ const app = Vue.createApp({
                     console.log(response);
                     loadingInstance.close();
                     if (search_type === 0 || search_type === 1 || search_type === 5) {
-                        that.files = response["data"];
+                        that.allFiles = response["data"];
+                        that.files = that.allFiles.slice(0, that.pageSize);
+                        that.totalFiles = that.allFiles.length;
+                        that.currentPage = 1;
                         that.image_url_list = [];
-                        that.files.forEach(function(element) {
+                        that.allFiles.forEach(function(element) {
                             that.image_url_list.push(element.url);
                         });
-                        ElementPlus.ElMessage.info(that.$t('messages.totalSearchResult') + that.files.length + that.$t('messages.photos'));
+                        ElementPlus.ElMessage.info(that.$t('messages.totalSearchResult') + that.totalFiles + that.$t('messages.photos'));
                         return;
                     }
                     if (search_type === 2 || search_type === 3 || search_type === 6) {
-                        that.files = response["data"];
-                        ElementPlus.ElMessage.info(that.$t('messages.totalSearchResult') + that.files.length + that.$t('messages.videos'));
+                        that.allFiles = response["data"];
+                        that.files = that.allFiles.slice(0, that.pageSize);
+                        that.totalFiles = that.allFiles.length;
+                        that.currentPage = 1;
+                        ElementPlus.ElMessage.info(that.$t('messages.totalSearchResult') + that.totalFiles + that.$t('messages.videos'));
                         return;
                     }
                     if (search_type === 9) {
@@ -553,6 +593,26 @@ const app = Vue.createApp({
         },
         blobToFile(blob, fileName) {
             return new File([blob], fileName, { type: blob.type });
+        },
+        handlePageChange(page) {
+            var that = this;
+            that.currentPage = page;
+            var start = (page - 1) * that.pageSize;
+            var end = start + that.pageSize;
+            that.files = that.allFiles.slice(start, end);
+        },
+        handleSizeChange(size) {
+            var that = this;
+            that.pageSize = size;
+            that.handlePageChange(1);
+        },
+        copyPath(path) {
+            navigator.clipboard.writeText(path).then(function() {
+                ElementPlus.ElMessage.success(this.$t ? this.$t('messages.pathCopied') : '路径已复制到剪贴板');
+            }.bind(this)).catch(function(err) {
+                console.error('复制失败:', err);
+                ElementPlus.ElMessage.error(this.$t ? this.$t('messages.copyFailed') : '复制失败');
+            }.bind(this));
         },
     },
     setup() {

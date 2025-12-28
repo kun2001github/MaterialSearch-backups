@@ -1,4 +1,6 @@
 import logging
+import os
+import secrets
 import shutil
 import threading
 from functools import wraps
@@ -6,13 +8,12 @@ from io import BytesIO
 
 from flask import Flask, abort, jsonify, redirect, request, send_file, session, url_for
 
-from config import *
-from database import get_image_path_by_id, is_video_exist, get_pexels_video_count
-# from init import *
-from models import DatabaseSession, DatabaseSessionPexelsVideo
-from process_assets import match_text_and_image, process_image, process_text
-from scan import Scanner
-from search import (
+from app.config import *
+from app.models.database import get_image_path_by_id, is_video_exist, get_pexels_video_count
+from app.models.models import DatabaseSession, DatabaseSessionPexelsVideo
+from app.services.process_assets import match_text_and_image, process_image, process_text
+from app.routes.scan import Scanner
+from app.routes.search import (
     clean_cache,
     search_image_by_image,
     search_image_by_text_path_time,
@@ -20,20 +21,26 @@ from search import (
     search_video_by_text_path_time,
     search_pexels_video_by_text,
 )
-from utils import crop_video, get_hash, resize_image_with_aspect_ratio
+from app.services.utils import crop_video, get_hash, resize_image_with_aspect_ratio
+from app.services.file_watcher import FileWatcher
 
 logger = logging.getLogger(__name__)
-app = Flask(__name__)
-app.secret_key = "https://github.com/chn-lee-yumi/MaterialSearch"
+app = Flask(__name__,
+            static_folder='static',
+            template_folder='static')
+
+# Generate a secure secret key or use environment variable
+app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
 
 scanner = Scanner()
+file_watcher = None
 
 
 def init():
     """
     清理和创建临时文件夹，初始化扫描线程（包括数据库初始化），根据AUTO_SCAN决定是否开启自动扫描线程
     """
-    global scanner
+    global scanner, file_watcher
     # 检查ASSETS_PATH是否存在
     for path in ASSETS_PATH:
         if not os.path.isdir(path):
@@ -47,6 +54,15 @@ def init():
     if AUTO_SCAN:
         auto_scan_thread = threading.Thread(target=scanner.auto_scan, args=())
         auto_scan_thread.start()
+    # 初始化文件监控
+    if ENABLE_FILE_WATCH:
+        file_watcher = FileWatcher(scanner)
+        try:
+            file_watcher.start()
+            logger.info("文件监控已启动")
+        except Exception as e:
+            logger.error(f"启动文件监控失败: {e}")
+            file_watcher = None
 
 
 def login_required(view_func):
@@ -120,10 +136,12 @@ def api_scan():
 @login_required
 def api_status():
     """状态"""
-    global scanner
+    global scanner, file_watcher
     result = scanner.get_status()
     with DatabaseSessionPexelsVideo() as session:
         result["total_pexels_videos"] = get_pexels_video_count(session)
+    result["file_watch_enabled"] = ENABLE_FILE_WATCH
+    result["file_watch_running"] = file_watcher.is_running() if file_watcher else False
     return jsonify(result)
 
 
@@ -145,46 +163,79 @@ def api_match():
     匹配文字对应的素材
     :return: json格式的素材信息列表
     """
-    data = request.get_json()
-    top_n = int(data["top_n"])
-    search_type = data["search_type"]
-    positive_threshold = data["positive_threshold"]
-    negative_threshold = data["negative_threshold"]
-    image_threshold = data["image_threshold"]
-    img_id = data["img_id"]
-    path = data["path"]
-    start_time = data["start_time"]
-    end_time = data["end_time"]
-    upload_file_path = session.get('upload_file_path', '')
-    session['upload_file_path'] = ""
-    if search_type in (1, 3, 4):
-        if not upload_file_path or not os.path.exists(upload_file_path):
-            return "你没有上传文件！", 400
-    logger.debug(data)
-    # 进行匹配
-    if search_type == 0:  # 文字搜图
-        results = search_image_by_text_path_time(data["positive"], data["negative"], positive_threshold, negative_threshold,
+    try:
+        data = request.get_json()
+        logger.info(f"收到搜索请求: search_type={data.get('search_type')}, top_n={data.get('top_n')}")
+
+        # 参数验证
+        if not data:
+            logger.error("请求数据为空")
+            return jsonify({"error": "请求数据为空"}), 400
+
+        # 获取参数，使用.get()避免KeyError
+        try:
+            top_n = int(data.get("top_n", 6))
+            search_type = int(data.get("search_type", 0))
+            positive_threshold = float(data.get("positive_threshold", 30))
+            negative_threshold = float(data.get("negative_threshold", 30))
+            image_threshold = float(data.get("image_threshold", 75))
+            img_id = int(data.get("img_id", -1))
+            path = data.get("path", "")
+            start_time = data.get("start_time", 0)
+            end_time = data.get("end_time", 0)
+            positive = data.get("positive", "")
+            negative = data.get("negative", "")
+        except (ValueError, TypeError) as e:
+            logger.error(f"参数类型转换错误: {e}, data={data}")
+            return jsonify({"error": f"参数类型错误: {str(e)}"}), 400
+
+        logger.info(f"搜索参数: search_type={search_type}, top_n={top_n}, path={path}, positive={positive}")
+
+        upload_file_path = session.get('upload_file_path', '')
+
+        # 只在需要上传文件的搜索类型时检查和清空session
+        if search_type in (1, 3, 4):
+            if not upload_file_path or not os.path.exists(upload_file_path):
+                logger.error(f"上传文件检查失败: upload_file_path={upload_file_path}, exists={os.path.exists(upload_file_path) if upload_file_path else False}")
+                return "你没有上传文件！", 400
+            # 只有在使用上传文件时才清空session
+            session['upload_file_path'] = ""
+        else:
+            # 不需要上传文件的搜索类型，不清空session，保留上一次的上传
+            logger.info(f"搜索类型{search_type}不需要上传文件，保留session中的upload_file_path")
+
+        # 进行匹配
+        results = []
+        if search_type == 0:  # 文字搜图
+            results = search_image_by_text_path_time(positive, negative, positive_threshold, negative_threshold,
                                                  path, start_time, end_time)
-    elif search_type == 1:  # 以图搜图
-        results = search_image_by_image(upload_file_path, image_threshold, path, start_time, end_time)
-    elif search_type == 2:  # 文字搜视频
-        results = search_video_by_text_path_time(data["positive"], data["negative"], positive_threshold, negative_threshold,
+        elif search_type == 1:  # 以图搜图
+            results = search_image_by_image(upload_file_path, image_threshold, path, start_time, end_time)
+        elif search_type == 2:  # 文字搜视频
+            results = search_video_by_text_path_time(positive, negative, positive_threshold, negative_threshold,
                                                  path, start_time, end_time)
-    elif search_type == 3:  # 以图搜视频
-        results = search_video_by_image(upload_file_path, image_threshold, path, start_time, end_time)
-    elif search_type == 4:  # 图文相似度匹配
-        score = match_text_and_image(process_text(data["positive"]), process_image(upload_file_path)) * 100
-        return jsonify({"score": "%.2f" % score})
-    elif search_type == 5:  # 以图搜图(图片是数据库中的)
-        results = search_image_by_image(img_id, image_threshold, path, start_time, end_time)
-    elif search_type == 6:  # 以图搜视频(图片是数据库中的)
-        results = search_video_by_image(img_id, image_threshold, path, start_time, end_time)
-    elif search_type == 9:  # 文字搜pexels视频
-        results = search_pexels_video_by_text(data["positive"], positive_threshold)
-    else:  # 空
-        logger.warning(f"search_type不正确：{search_type}")
-        abort(400)
-    return jsonify(results[:top_n])
+        elif search_type == 3:  # 以图搜视频
+            results = search_video_by_image(upload_file_path, image_threshold, path, start_time, end_time)
+        elif search_type == 4:  # 图文相似度匹配
+            score = match_text_and_image(process_text(positive), process_image(upload_file_path)) * 100
+            logger.info(f"图文相似度: {score}")
+            return jsonify({"score": "%.2f" % score})
+        elif search_type == 5:  # 以图搜图(图片是数据库中的)
+            results = search_image_by_image(img_id, image_threshold, path, start_time, end_time)
+        elif search_type == 6:  # 以图搜视频(图片是数据库中的)
+            results = search_video_by_image(img_id, image_threshold, path, start_time, end_time)
+        elif search_type == 9:  # 文字搜pexels视频
+            results = search_pexels_video_by_text(positive, positive_threshold)
+        else:  # 空
+            logger.error(f"search_type不正确：{search_type}")
+            return jsonify({"error": f"不支持的搜索类型: {search_type}"}), 400
+
+        logger.info(f"搜索结果数量: {len(results)}, 返回前{top_n}个")
+        return jsonify(results[:top_n])
+
+    except Exception as e:
+        logger.error(f"搜索过程中发生错误: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/get_image/<int:image_id>", methods=["GET"])
@@ -278,9 +329,6 @@ def api_upload():
 
 
 if __name__ == "__main__":
-    # pre_init()
     init()
     logging.getLogger('werkzeug').setLevel(LOG_LEVEL)
-    # init2()  # 函数定义在加密代码中，请忽略 Unresolved reference 'init2'
-    # post_init()
     app.run(port=PORT, host=HOST, debug=FLASK_DEBUG)

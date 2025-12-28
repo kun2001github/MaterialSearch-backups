@@ -3,19 +3,13 @@ import os
 
 import torch
 
-# 输出代码执行的设备信息，用于调试
-# from env import *
-# pre_env()
-# env()  # 函数定义在加密代码中，请忽略 Unresolved reference 'env'
-# post_env()
-
 # *****服务器配置*****
 HOST = os.getenv('HOST', '127.0.0.1')  # 监听IP，如果想允许远程访问，把这个改成0.0.0.0
 PORT = int(os.getenv('PORT', 8085))  # 监听端口
 
 # *****扫描配置*****
 # Windows系统的路径写法例子：'D:/照片'
-ASSETS_PATH = tuple(os.getenv('ASSETS_PATH', '/home,/srv').split(','))  # 素材所在的目录，绝对路径，逗号分隔
+ASSETS_PATH = tuple(os.getenv('ASSETS_PATH', 'C:/Users/11755/Pictures/以图搜图测试,/srv').split(','))  # 素材所在的目录，绝对路径，逗号分隔
 SKIP_PATH = tuple(os.getenv('SKIP_PATH', '/tmp').split(','))  # 跳过扫描的目录，绝对路径，逗号分隔
 IMAGE_EXTENSIONS = tuple(os.getenv('IMAGE_EXTENSIONS', '.jpg,.jpeg,.png,.gif,.heic,.webp,.bmp').split(','))  # 支持的图片拓展名，逗号分隔，请填小写
 VIDEO_EXTENSIONS = tuple(os.getenv('VIDEO_EXTENSIONS', '.mp4,.flv,.mov,.mkv,.webm,.avi').split(','))  # 支持的视频拓展名，逗号分隔，请填小写
@@ -28,6 +22,7 @@ AUTO_SCAN = os.getenv('AUTO_SCAN', 'False').lower() == 'true'  # 是否自动扫
 AUTO_SCAN_START_TIME = tuple(map(int, os.getenv('AUTO_SCAN_START_TIME', '22:30').split(':')))  # 自动扫描开始时间
 AUTO_SCAN_END_TIME = tuple(map(int, os.getenv('AUTO_SCAN_END_TIME', '8:00').split(':')))  # 自动扫描结束时间
 AUTO_SAVE_INTERVAL = int(os.getenv('AUTO_SAVE_INTERVAL', 100))  # 扫描自动保存间隔，默认为每 100 个文件自动保存一次
+ENABLE_FILE_WATCH = os.getenv('ENABLE_FILE_WATCH', 'True').lower() == 'false'  # 是否启用文件监控，启用后会自动扫描新增或修改的文件，默认开启
 
 # *****模型配置*****
 # 更换模型需要删库重新扫描！否则搜索会报错。数据库路径见下面SQLALCHEMY_DATABASE_URL参数。模型越大，扫描速度越慢，且占用的内存和显存越大。
@@ -53,8 +48,8 @@ IMAGE_THRESHOLD = int(os.getenv('IMAGE_THRESHOLD', 85))  # 图片搜出来的素
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')  # 日志等级：NOTSET/DEBUG/INFO/WARNING/ERROR/CRITICAL
 
 # *****其它配置*****
-SQLALCHEMY_DATABASE_URL = os.getenv('SQLALCHEMY_DATABASE_URL', 'sqlite:///./instance/assets.db')  # 数据库保存路径
-TEMP_PATH = os.getenv('TEMP_PATH', './tmp')  # 临时目录路径
+SQLALCHEMY_DATABASE_URL = os.getenv('SQLALCHEMY_DATABASE_URL', 'sqlite:///./data/instance/assets.db')  # 数据库保存路径
+TEMP_PATH = os.getenv('TEMP_PATH', './data/tmp')  # 临时目录路径
 VIDEO_EXTENSION_LENGTH = int(os.getenv('VIDEO_EXTENSION_LENGTH', 0))  # 下载视频片段时，视频前后增加的时长，单位为秒
 ENABLE_LOGIN = os.getenv('ENABLE_LOGIN', 'False').lower() == 'true'  # 是否启用登录
 USERNAME = os.getenv('USERNAME', 'admin')  # 登录用户名

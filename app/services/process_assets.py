@@ -1,7 +1,9 @@
 # 预处理图片和视频，建立索引，加快搜索速度
 import logging
+import time
 import traceback
 
+import torch
 import cv2
 import numpy as np
 import requests
@@ -9,21 +11,151 @@ from PIL import Image
 from tqdm import trange
 from transformers import AutoModelForZeroShotImageClassification, AutoProcessor
 
-from config import *
+from app.config import *
 
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-logger.info("Loading model...")
-print("Loading models...")
-with tqdm(total=2, desc='Model Loading', unit='step') as pbar:
-    clip_model = AutoModelForZeroShotImageClassification.from_pretrained(MODEL_NAME)
-    pbar.update(1)
-    clip_processor = AutoProcessor.from_pretrained(MODEL_NAME)
-    pbar.update(1)
-print("Models loaded.")
-logger.info("Model loaded.")
+# 全局模型变量
+clip_model = None
+clip_processor = None
+
+def load_models():
+    """
+    优化的模型加载函数，提供详细的进度信息和加速加载
+    优先使用本地缓存，首次运行时自动下载
+    """
+    global clip_model, clip_processor
+
+    logger.info("Loading model...")
+    print("\n" + "=" * 70)
+    print("模型加载 / Model Loading")
+    print("=" * 70)
+    print(f"模型名称 / Model: {MODEL_NAME}")
+    print(f"设备 / Device: {DEVICE}")
+    print("-" * 70)
+
+    start_time = time.time()
+
+    # 检查本地缓存是否存在
+    import os
+    # 使用绝对路径，确保模型下载到 data/cache 目录
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    cache_dir = os.path.join(project_root, 'data', 'cache')
+
+    # 确保缓存目录存在
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir, exist_ok=True)
+
+    # 检查模型是否已缓存（检查关键文件是否存在）
+    model_cache_path = os.path.join(cache_dir, 'models--' + MODEL_NAME.replace('/', '--'))
+    model_cached = False
+
+    # 检查 snapshots 目录下是否有模型文件
+    if os.path.exists(model_cache_path):
+        snapshots_dir = os.path.join(model_cache_path, 'snapshots')
+        if os.path.exists(snapshots_dir):
+            # 检查是否有至少一个快照目录包含模型文件
+            for snapshot in os.listdir(snapshots_dir):
+                snapshot_path = os.path.join(snapshots_dir, snapshot)
+                if os.path.isdir(snapshot_path):
+                    # 检查是否有 pytorch_model.bin 或 model.safetensors
+                    if (os.path.exists(os.path.join(snapshot_path, 'pytorch_model.bin')) or
+                        os.path.exists(os.path.join(snapshot_path, 'model.safetensors'))):
+                        model_cached = True
+                        break
+
+    # 使用更细粒度的进度条
+    with tqdm(total=6, desc='总进度 / Total Progress', unit='step',
+              bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
+
+        # 步骤 1: 配置加载
+        step_start = time.time()
+        print(f"\n[1/6] 配置模型参数 / Configuring model parameters...")
+        pbar.set_description("配置 / Config")
+        pbar.update(1)
+        print(f"      ✓ 完成 / Completed ({time.time() - step_start:.2f}s)")
+
+        # 步骤 2: 查找模型
+        step_start = time.time()
+        print(f"\n[2/6] 查找模型文件 / Finding model files...")
+        pbar.set_description("查找 / Finding")
+        pbar.update(1)
+
+        if model_cached:
+            print(f"      ✓ 发现本地缓存 / Found local cache")
+            use_local_only = True
+        else:
+            print(f"      ⚠ 未发现本地缓存，将首次下载 / No local cache, will download")
+            use_local_only = False
+        print(f"      ✓ 完成 / Completed ({time.time() - step_start:.2f}s)")
+
+        # 步骤 3: 下载/加载模型权重
+        step_start = time.time()
+        print(f"\n[3/6] 加载模型权重 / Loading model weights...")
+        if use_local_only:
+            print(f"      (从本地缓存加载 / Loading from local cache)")
+        else:
+            print(f"      (首次运行会自动下载模型，请耐心等待)")
+            print(f"      (First run will download model, please be patient)")
+        pbar.set_description("模型 / Model")
+        clip_model = AutoModelForZeroShotImageClassification.from_pretrained(
+            MODEL_NAME,
+            cache_dir=cache_dir,
+            local_files_only=use_local_only
+        )
+        pbar.update(1)
+        model_time = time.time() - step_start
+        print(f"      ✓ 完成 / Completed ({model_time:.2f}s)")
+
+        # 步骤 4: 加载处理器
+        step_start = time.time()
+        print(f"\n[4/6] 加载处理器 / Loading processor...")
+        pbar.set_description("处理器 / Processor")
+        clip_processor = AutoProcessor.from_pretrained(
+            MODEL_NAME,
+            cache_dir=cache_dir,
+            local_files_only=use_local_only
+        )
+        pbar.update(1)
+        print(f"      ✓ 完成 / Completed ({time.time() - step_start:.2f}s)")
+
+        # 步骤 5: 移动模型到设备
+        step_start = time.time()
+        print(f"\n[5/6] 将模型移动到 {DEVICE} / Moving model to {DEVICE}...")
+        pbar.set_description(f"设备 / {DEVICE}")
+        clip_model = clip_model.to(DEVICE)
+        pbar.update(1)
+        print(f"      ✓ 完成 / Completed ({time.time() - step_start:.2f}s)")
+
+        # 步骤 6: 评估模型
+        step_start = time.time()
+        print(f"\n[6/6] 模型评估 / Evaluating model...")
+        pbar.set_description("评估 / Evaluating")
+        # 创建一个有效的测试图像（纯黑图像）
+        dummy_image = Image.new('RGB', (224, 224), color=(0, 0, 0))
+        with torch.no_grad():
+            inputs = clip_processor(images=dummy_image, return_tensors="pt")["pixel_values"].to(DEVICE)
+            _ = clip_model.get_image_features(inputs)
+        pbar.update(1)
+        print(f"      ✓ 完成 / Completed ({time.time() - step_start:.2f}s)")
+
+    total_time = time.time() - start_time
+    print("\n" + "=" * 70)
+    print(f"模型加载完成 / Model Loading Completed")
+    print(f"总耗时 / Total Time: {total_time:.2f}s")
+    if use_local_only:
+        print(f"从本地缓存加载 / Loaded from local cache")
+    else:
+        print(f"首次下载完成 / First-time download completed")
+        print(f"下次启动将使用本地缓存 / Will use local cache on next startup")
+    print("=" * 70 + "\n")
+
+    logger.info(f"Model loaded in {total_time:.2f}s")
+
+# 启动时加载模型
+load_models()
 
 
 def get_image_feature(images):
@@ -35,8 +167,8 @@ def get_image_feature(images):
         return None
     features = None
     try:
-        inputs = processor(images=images, return_tensors="pt")["pixel_values"].to(DEVICE)
-        features = model.get_image_features(inputs)
+        inputs = clip_processor(images=images, return_tensors="pt")["pixel_values"].to(DEVICE)
+        features = clip_model.get_image_features(inputs)
         normalized_features = features / torch.norm(features, dim=1, keepdim=True)  # 归一化，方便后续计算余弦相似度
         features = normalized_features.detach().cpu().numpy()
     except Exception as e:
@@ -200,8 +332,8 @@ def process_text(input_text):
     if not input_text:
         return None
     try:
-        text = processor(text=input_text, return_tensors="pt", padding=True)["input_ids"].to(DEVICE)
-        feature = model.get_text_features(text)
+        text = clip_processor(text=input_text, return_tensors="pt", padding=True)["input_ids"].to(DEVICE)
+        feature = clip_model.get_text_features(text)
         normalize_feature = feature / torch.norm(feature, dim=1, keepdim=True)  # 归一化，方便后续计算余弦相似度
         feature = normalize_feature.detach().cpu().numpy()
     except Exception as e:
